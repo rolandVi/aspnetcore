@@ -1,0 +1,105 @@
+﻿@page "/image-demo"
+@using Microsoft.AspNetCore.Components.Web.Image
+@using Microsoft.AspNetCore.Components.Forms
+@inject BlazorUnitedApp.Services.AiImageService Ai
+
+<PageTitle>Image Demo</PageTitle>
+
+<div class="ai-demo-container">
+    <h1>Image Generator</h1>
+    <EditForm OnValidSubmit="GenerateAsync" Model="this" FormName="imagegen" method="POST">
+        <InputTextArea @bind-Value="Prompt" class="prompt-input" placeholder="Describe the image you want to generate..." rows="4" />
+        <div class="actions">
+            <button type="submit" disabled="@_isBusy">Generate</button>
+            <button type="button" disabled="@(!_isBusy)" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+
+    <div class="image-stage">
+        @if (_imageData is not null)
+        {
+            <Image Source="@_imageSource"
+                style="max-width:512px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);"
+                alt="@_altText" />
+
+            @if (!string.IsNullOrEmpty(_altText))
+            {
+                <p class="alt-text">Alt: @_altText</p>
+            }
+        }
+        else if (_isBusy)
+        {
+            <div class="ai-placeholder loading">
+                <div class="spinner"></div>
+                <p>Generating image...</p>
+            </div>
+        }
+        else
+        {
+            <div class="ai-placeholder">
+                <p>Enter a prompt and click Generate</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    public string Prompt { get; set; } = "";
+    private byte[]? _imageData;
+    private ImageSource? _imageSource;
+    private string? _altText;
+    private CancellationTokenSource? _cts;
+    private bool _isBusy;
+
+    private async Task GenerateAsync()
+    {
+        Cancel();
+        _altText = null;
+        _imageData = null;
+        _imageSource = null;
+        _isBusy = true;
+        _cts = new CancellationTokenSource();
+        StateHasChanged();
+
+        try
+        {
+            var data = await Ai.GenerateImageAsync(Prompt, _cts.Token);
+            if (data is null)
+            {
+                _isBusy = false;
+                return;
+            }
+            _imageData = data;
+            _imageSource = new ImageSource(_imageData, "image/png", Guid.NewGuid().ToString("n"));
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel()
+    {
+        try { _cts?.Cancel(); } catch { }
+        _cts?.Dispose();
+        _cts = null;
+    }
+}
+
+<style>
+.ai-demo-container { max-width: 840px; margin: 0 auto; padding: 2rem; text-align: center; font-family: system-ui, sans-serif; }
+.ai-demo-container h1 { font-weight: 600; margin-bottom: 1rem; }
+.prompt-input { width: 100%; font-size: 1rem; padding: 1rem; border-radius: 8px; border: 1px solid #ccc; resize: vertical; }
+.actions { margin-top: 0.75rem; display:flex; gap:0.75rem; justify-content:center; }
+.actions button { padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: 6px; border: none; background:#2563eb; color:#fff; cursor:pointer; }
+.actions button[disabled] { opacity:.5; cursor: default; }
+.image-stage { margin-top:2rem; display:flex; justify-content:center; align-items:center; min-height: 560px; position:relative; }
+.ai-placeholder { width:512px; height:512px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px dashed #ccc; border-radius:12px; color:#666; padding:1rem; }
+.ai-placeholder.loading { border-style:solid; }
+.spinner { width:64px; height:64px; border:6px solid #ddd; border-top-color:#2563eb; border-radius:50%; animation: spin 1s linear infinite; margin-bottom:1rem; }
+.alt-text { margin-top:0.75rem; font-size:0.9rem; color:#444; }
+@@keyframes spin { to { transform: rotate(360deg); } }
+</style>

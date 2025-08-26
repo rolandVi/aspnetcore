@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Net.Http;
 using BlazorUnitedApp;
 using BlazorUnitedApp.Data;
 
@@ -12,6 +13,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<WeatherForecastService>();
+
+builder.Services.AddSingleton<HttpClient>();
+builder.Services.AddSingleton<BlazorUnitedApp.Services.AiImageService>();
 
 var app = builder.Build();
 
